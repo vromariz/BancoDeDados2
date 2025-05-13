@@ -196,7 +196,6 @@ INSERT INTO cliente (nome, sexo, idade, nascimento) VALUES
 ('Lúcia Andrade', 'f', 45, '1979-09-28'),
 ('Thiago Teixeira', 'm', 31, '1993-11-10'),
 ('Brenda Nogueira', 'f', 22, '2002-04-19'),
-('Arthur Melo', 'm', 20, '2004-05-21');
 
 --triggers
 --funcionario que vendeu > R$1000 entra como funcionario especial e recebe b0nus de 5%
