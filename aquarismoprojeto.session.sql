@@ -289,3 +289,102 @@ FROM funcionario f
 JOIN venda v ON f.id = v.id_vendedor
 JOIN venda_produto vp ON v.id = vp.id_venda
 GROUP BY f.id;
+
+--procedimentos
+--reajuste salarial por cargo
+DELIMITER //
+CREATE PROCEDURE reajuste(IN pcargo VARCHAR(50), IN percentual DECIMAL(5,2))
+BEGIN
+  UPDATE funcionario
+  SET salario = salario + (salario * percentual / 100)
+  WHERE cargo = pcargo;
+END //
+DELIMITER ;
+
+--sorteio de cliente
+DELIMITER //
+CREATE PROCEDURE sorteio()
+BEGIN
+  DECLARE sorteado INT;
+  SELECT id INTO sorteado FROM cliente ORDER BY RAND() LIMIT 1;
+
+  IF sorteado IN (SELECT id_cliente FROM clienteespecial) THEN
+    SELECT CONCAT('Cliente ', sorteado, ' ganhou um voucher de R$200!') AS mensagem;
+  ELSE
+    SELECT CONCAT('Cliente ', sorteado, ' ganhou um voucher de R$100!') AS mensagem;
+  END IF;
+END //
+DELIMITER ;
+
+--realizar venda e reduzir estoque
+DELIMITER //
+CREATE PROCEDURE venda(IN pid_produto INT, IN quantidade INT)
+BEGIN
+  UPDATE produto SET quantidade = quantidade - quantidade
+  WHERE id = pid_produto AND quantidade >= quantidade;
+END //
+DELIMITER ;
+
+--estatísticas de venda
+DELIMITER //
+CREATE PROCEDURE estatisticas()
+BEGIN
+  DECLARE id_mais INT;
+  DECLARE id_menos INT;
+
+  SELECT id_produto INTO id_mais
+  FROM venda_produto
+  GROUP BY id_produto
+  ORDER BY SUM(quantidade) DESC
+  LIMIT 1;
+
+  SELECT id_produto INTO id_menos
+  FROM venda_produto
+  GROUP BY id_produto
+  ORDER BY SUM(quantidade) ASC
+  LIMIT 1;
+
+  SELECT 'Mais vendido' AS tipo,
+         p.nome,
+         SUM(vp.quantidade) AS total,
+         SUM(vp.quantidade * vp.valor_unitario) AS total_ganho,
+         MONTH(v.data) AS mes
+  FROM produto p
+  JOIN venda_produto vp ON p.id = vp.id_produto
+  JOIN venda v ON v.id = vp.id_venda
+  WHERE p.id = id_mais
+  GROUP BY mes;
+
+  SELECT 'Menos vendido' AS tipo,
+         p.nome,
+         SUM(vp.quantidade) AS total,
+         SUM(vp.quantidade * vp.valor_unitario) AS total_ganho,
+         MONTH(v.data) AS mes
+  FROM produto p
+  JOIN venda_produto vp ON p.id = vp.id_produto
+  JOIN venda v ON v.id = vp.id_venda
+  WHERE p.id = id_menos
+  GROUP BY mes;
+
+  SELECT f.nome AS vendedor
+  FROM funcionario f
+  JOIN venda v ON f.id = v.id_vendedor
+  JOIN venda_produto vp ON v.id = vp.id_venda
+  WHERE vp.id_produto = id_mais
+  GROUP BY f.id
+  ORDER BY SUM(vp.quantidade) DESC
+  LIMIT 1;
+END //
+DELIMITER ;
+
+--usuarios e permissoes
+CREATE USER 'admin'@'localhost' IDENTIFIED BY 'admin123';
+CREATE USER 'gerente'@'localhost' IDENTIFIED BY 'gerente123';
+CREATE USER 'funcionario'@'localhost' IDENTIFIED BY 'func123';
+
+GRANT ALL PRIVILEGES ON aquarismo.* TO 'admin'@'localhost';
+GRANT SELECT, DELETE, UPDATE ON aquarismo.* TO 'gerente'@'localhost';
+GRANT INSERT, SELECT ON aquarismo.venda, aquarismo.venda_produto TO 'funcionario'@'localhost';
+
+FLUSH PRIVILEGES;
+
